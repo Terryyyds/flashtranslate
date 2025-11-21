@@ -13,7 +13,8 @@ const App: React.FC = () => {
     const trimmedBase = baseUrl?.trim();
     if (trimmedBase) return trimmedBase;
     const hasCustomKey = !!apiKey?.trim();
-    return hasCustomKey ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL;
+    if (!hasCustomKey && provider === 'claude') return SYSTEM_BASE_URL;
+    return PROVIDER_DEFAULT_BASE_URLS[provider];
   };
 
   const normalizeConfig = (raw?: Partial<ApiConfig>): ApiConfig => {

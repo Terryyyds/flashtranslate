@@ -8,7 +8,8 @@ const resolveBaseUrl = (provider: ApiProvider, apiKey: string, baseUrl?: string)
   const trimmedBase = baseUrl?.trim();
   if (trimmedBase) return trimmedBase;
   const hasCustomKey = !!apiKey?.trim();
-  return hasCustomKey ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL;
+  if (!hasCustomKey && provider === 'claude') return SYSTEM_BASE_URL;
+  return PROVIDER_DEFAULT_BASE_URLS[provider];
 };
 
 interface SettingsModalProps {
@@ -49,7 +50,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleClearKey = () => {
     setApiKey('');
-    setBaseUrl(SYSTEM_BASE_URL);
+    setBaseUrl(resolveBaseUrl(provider, ''));
   };
 
   const handleProviderChange = (nextProvider: ApiProvider) => {
@@ -60,7 +61,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleApiKeyChange = (value: string) => {
     setApiKey(value);
     const trimmed = value.trim();
-    setBaseUrl(trimmed ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL);
+    setBaseUrl(resolveBaseUrl(provider, trimmed));
   };
 
   const getProviderLabel = (p: ApiProvider) => {
@@ -141,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700 flex justify-between">
               <span>API Key</span>
-              {!apiKey && (
+              {provider === 'claude' && !apiKey && (
                 <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">Using System Key</span>
               )}
             </label>
@@ -166,9 +167,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              {!apiKey 
+              {(!apiKey && provider === 'claude') 
                 ? `Using system key and default endpoint (${SYSTEM_BASE_URL}). Leave blank to keep using the built-in credentials.` 
-                : "Your API key is stored locally in your browser and sent directly to the chosen provider/endpoint."}
+                : !apiKey
+                  ? "No key provided. Enter your own API key for this provider."
+                  : "Your API key is stored locally in your browser and sent directly to the chosen provider/endpoint."}
             </p>
           </div>
 

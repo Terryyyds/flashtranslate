@@ -15,9 +15,16 @@ const resolveBaseUrl = (provider: ApiConfig['provider'], apiKey: string, baseUrl
   const cleaned = trimBase(baseUrl);
   if (cleaned) return cleaned;
   const hasCustomKey = !!apiKey?.trim();
-  return trimBase(hasCustomKey ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL);
+  if (!hasCustomKey && provider === 'claude') return trimBase(SYSTEM_BASE_URL);
+  return trimBase(PROVIDER_DEFAULT_BASE_URLS[provider]);
 };
-const resolveApiKey = (apiKey: string) => apiKey.trim() || SYSTEM_API_KEY;
+const resolveApiKey = (provider: ApiConfig['provider'], apiKey: string) => {
+  const trimmed = (apiKey || "").trim();
+  if (trimmed) return trimmed;
+  if (provider === 'claude') return SYSTEM_API_KEY;
+  if (provider === 'gemini') return (process.env.API_KEY as string) || (process.env.GEMINI_API_KEY as string) || '';
+  return '';
+};
 
 export const translateText = async (
   text: string,
@@ -45,7 +52,7 @@ export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => 
   const baseUrl = config.baseUrl;
 
   if (provider === 'openai') {
-    const keyToValidate = resolveApiKey(userKey);
+    const keyToValidate = resolveApiKey(provider, userKey);
     if (!keyToValidate) return false;
     try {
       const base = resolveBaseUrl(provider, userKey, baseUrl) || PROVIDER_DEFAULT_BASE_URLS[provider];
@@ -62,7 +69,7 @@ export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => 
   } 
 
   if (provider === 'claude') {
-    const keyToValidate = resolveApiKey(userKey);
+    const keyToValidate = resolveApiKey(provider, userKey);
     if (!keyToValidate) return false;
     try {
       const base = resolveBaseUrl(provider, userKey, baseUrl) || PROVIDER_DEFAULT_BASE_URLS[provider];
@@ -89,7 +96,7 @@ export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => 
   }
   
   if (provider === 'gemini') {
-    let keyToValidate = userKey || (process.env.API_KEY as string) || SYSTEM_API_KEY;
+    const keyToValidate = resolveApiKey(provider, userKey);
 
     if (!keyToValidate) return false;
 
@@ -127,7 +134,7 @@ export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => 
 
 async function translateWithGemini(text: string, targetLanguage: string, apiKey: string, baseUrl?: string): Promise<TranslationResult> {
   const userKey = (apiKey || "").trim();
-  const key = userKey || (process.env.API_KEY as string) || SYSTEM_API_KEY;
+  const key = resolveApiKey('gemini', userKey);
   
   if (!key) {
     throw new Error("Gemini API Key is missing. Please configure it in settings.");

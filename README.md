@@ -21,7 +21,7 @@ npm run preview      # preview the production build
 ```
 
 ## Configuration
-- Built-in system key: leave API Key blank to use the bundled system key. When using it, the default endpoint is `https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg/v1`.
+- Built-in system key (Claude only): leave API Key blank while on Claude to use the bundled system key. When using it, the default endpoint is `https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg/v1`.
 - Custom keys: when you enter your own API key, the endpoint auto-fills to the provider default (Gemini `https://generativelanguage.googleapis.com`, OpenAI `https://api.openai.com/v1`, Claude `https://api.anthropic.com/v1`).
 - `GEMINI_API_KEY` (optional): when set at build time, it is bundled as `process.env.API_KEY`/`process.env.GEMINI_API_KEY` and used if no Gemini key is entered in the UI.
 - In-app settings (gear icon):
