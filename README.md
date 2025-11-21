@@ -1,10 +1,10 @@
 # FlashTranslate
 
-Lightning-fast, cross-platform AI translation UI built with React + Vite. Gemini Flash Lite is the default engine, with OpenAI and Claude available through settings.
+Lightning-fast, cross-platform AI translation UI built with React + Vite. By default it uses Anthropic Claude 3.5 Haiku via a built-in system key/endpoint; you can switch to Gemini Flash Lite or GPT-4o Mini in settings.
 
 ## Features
 - Auto-detects source language and translates to 16+ targets with a single keystroke (press Enter to translate)
-- Switchable providers: Gemini 2.5 Flash Lite, GPT-4o Mini, or Claude 3.5 Haiku; optional custom API endpoints/proxies
+- Switchable providers: Claude 3.5 Haiku (default via system key), Gemini 2.5 Flash Lite, or GPT-4o Mini; optional custom API endpoints/proxies
 - Two-pane layout with word/character counts, loading overlay, detected-language badge, and copy-to-clipboard for results
 - Local-only storage of API settings; validation badge in the header shows whether the key/endpoint combination works
 
@@ -21,12 +21,14 @@ npm run preview      # preview the production build
 ```
 
 ## Configuration
+- Built-in system key: leave API Key blank to use the bundled system key. When using it, the default endpoint is `https://apic1.ohmycdn.com/api/v1/ai/openai/cc-omg/v1`.
+- Custom keys: when you enter your own API key, the endpoint auto-fills to the provider default (Gemini `https://generativelanguage.googleapis.com`, OpenAI `https://api.openai.com/v1`, Claude `https://api.anthropic.com/v1`).
 - `GEMINI_API_KEY` (optional): when set at build time, it is bundled as `process.env.API_KEY`/`process.env.GEMINI_API_KEY` and used if no Gemini key is entered in the UI.
 - In-app settings (gear icon):
   - Choose provider (Gemini/OpenAI/Claude)
   - Enter API key (stored in `localStorage` under `flash_translate_api_config`; cleared with the trash icon)
   - Optional API endpoint override (useful for proxies such as `/v1` compatible gateways)
-- Default endpoints: Gemini `https://generativelanguage.googleapis.com`, OpenAI `https://api.openai.com/v1`, Claude `https://api.anthropic.com/v1`.
+- Default endpoints (when you supply your own keys): Gemini `https://generativelanguage.googleapis.com`, OpenAI `https://api.openai.com/v1`, Claude `https://api.anthropic.com/v1`.
 
 ## Usage
 - Select a target language (source is auto-detected)

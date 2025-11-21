@@ -1,14 +1,32 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ArrowRightLeft, Sparkles, Zap, Settings, Key } from 'lucide-react';
-import { Language, TranslationState, ApiConfig } from './types';
-import { SUPPORTED_LANGUAGES, DEFAULT_TARGET_LANGUAGE } from './constants';
+import { Language, TranslationState, ApiConfig, ApiProvider } from './types';
+import { SUPPORTED_LANGUAGES, DEFAULT_TARGET_LANGUAGE, DEFAULT_PROVIDER, SYSTEM_BASE_URL, PROVIDER_DEFAULT_BASE_URLS } from './constants';
 import { translateText, validateApiConfig } from './services/translationService';
 import { LanguageSelector } from './components/LanguageSelector';
 import { TranslationArea } from './components/TranslationArea';
 import { SettingsModal } from './components/SettingsModal';
 
 const App: React.FC = () => {
+  const resolveBaseUrl = (provider: ApiProvider, apiKey: string, baseUrl?: string) => {
+    const trimmedBase = baseUrl?.trim();
+    if (trimmedBase) return trimmedBase;
+    const hasCustomKey = !!apiKey?.trim();
+    return hasCustomKey ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL;
+  };
+
+  const normalizeConfig = (raw?: Partial<ApiConfig>): ApiConfig => {
+    const provider = (raw?.provider as ApiProvider) || DEFAULT_PROVIDER;
+    const apiKey = raw?.apiKey ?? '';
+    return {
+      provider,
+      apiKey,
+      baseUrl: resolveBaseUrl(provider, apiKey, raw?.baseUrl),
+      model: raw?.model,
+    };
+  };
+
   const [state, setState] = useState<TranslationState>({
     sourceText: '',
     targetText: '',
@@ -21,8 +39,9 @@ const App: React.FC = () => {
   // API Configuration State
   const [apiConfig, setApiConfig] = useState<ApiConfig>(() => {
     const saved = localStorage.getItem('flash_translate_api_config');
-    // Backward compatibility: if saved config exists but doesn't handle new providers well, validation will catch it
-    return saved ? JSON.parse(saved) : { provider: 'gemini', apiKey: '' };
+    const parsed = saved ? JSON.parse(saved) : null;
+    // Normalize base URL defaults depending on whether a system or custom key is used
+    return normalizeConfig(parsed || undefined);
   });
 
   // API Validation State
@@ -68,8 +87,9 @@ const App: React.FC = () => {
   }, [apiConfig]);
 
   const handleSaveApiConfig = (newConfig: ApiConfig) => {
-    setApiConfig(newConfig);
-    localStorage.setItem('flash_translate_api_config', JSON.stringify(newConfig));
+    const normalized = normalizeConfig(newConfig);
+    setApiConfig(normalized);
+    localStorage.setItem('flash_translate_api_config', JSON.stringify(normalized));
   };
 
   const handleTranslate = useCallback(async () => {

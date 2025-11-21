@@ -2,6 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Key, Lock, Trash2, Globe } from 'lucide-react';
 import { ApiConfig, ApiProvider } from '../types';
+import { PROVIDER_DEFAULT_BASE_URLS, SYSTEM_BASE_URL } from '../constants';
+
+const resolveBaseUrl = (provider: ApiProvider, apiKey: string, baseUrl?: string) => {
+  const trimmedBase = baseUrl?.trim();
+  if (trimmedBase) return trimmedBase;
+  const hasCustomKey = !!apiKey?.trim();
+  return hasCustomKey ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL;
+};
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,13 +26,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [provider, setProvider] = useState<ApiProvider>(config.provider);
   const [apiKey, setApiKey] = useState(config.apiKey);
-  const [baseUrl, setBaseUrl] = useState(config.baseUrl || '');
+  const [baseUrl, setBaseUrl] = useState(() => resolveBaseUrl(config.provider, config.apiKey, config.baseUrl));
 
   useEffect(() => {
     if (isOpen) {
       setProvider(config.provider);
       setApiKey(config.apiKey);
-      setBaseUrl(config.baseUrl || '');
+      setBaseUrl(resolveBaseUrl(config.provider, config.apiKey, config.baseUrl));
     }
   }, [isOpen, config]);
 
@@ -41,6 +49,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleClearKey = () => {
     setApiKey('');
+    setBaseUrl(SYSTEM_BASE_URL);
+  };
+
+  const handleProviderChange = (nextProvider: ApiProvider) => {
+    setProvider(nextProvider);
+    setBaseUrl(resolveBaseUrl(nextProvider, apiKey));
+  };
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    const trimmed = value.trim();
+    setBaseUrl(trimmed ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL);
   };
 
   const getProviderLabel = (p: ApiProvider) => {
@@ -53,12 +73,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const getEndpointPlaceholder = (p: ApiProvider) => {
-    switch(p) {
-      case 'gemini': return 'https://generativelanguage.googleapis.com';
-      case 'openai': return 'https://api.openai.com/v1';
-      case 'claude': return 'https://api.anthropic.com/v1';
-      default: return 'https://api.example.com';
-    }
+    return PROVIDER_DEFAULT_BASE_URLS[p] || 'https://api.example.com';
   };
 
   return (
@@ -90,7 +105,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <label className="block text-sm font-medium text-slate-700">AI Provider</label>
             <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => setProvider('gemini')}
+                onClick={() => handleProviderChange('gemini')}
                 className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl border transition-all ${
                   provider === 'gemini'
                     ? 'bg-blue-50 border-blue-200 text-blue-700 ring-1 ring-blue-500/20'
@@ -100,7 +115,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span className="font-medium text-sm">Google Gemini</span>
               </button>
               <button
-                onClick={() => setProvider('openai')}
+                onClick={() => handleProviderChange('openai')}
                 className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl border transition-all ${
                   provider === 'openai'
                     ? 'bg-teal-50 border-teal-200 text-teal-700 ring-1 ring-teal-500/20'
@@ -110,7 +125,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span className="font-medium text-sm">OpenAI</span>
               </button>
               <button
-                onClick={() => setProvider('claude')}
+                onClick={() => handleProviderChange('claude')}
                 className={`flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl border transition-all ${
                   provider === 'claude'
                     ? 'bg-orange-50 border-orange-200 text-orange-800 ring-1 ring-orange-500/20'
@@ -126,7 +141,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700 flex justify-between">
               <span>API Key</span>
-              {provider === 'gemini' && !apiKey && (
+              {!apiKey && (
                 <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">Using System Key</span>
               )}
             </label>
@@ -134,7 +149,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <input
                 type="password"
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => handleApiKeyChange(e.target.value)}
                 placeholder={`Enter your ${getProviderLabel(provider)} API Key`}
                 className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-800 placeholder:text-slate-400"
               />
@@ -151,9 +166,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              {provider === 'gemini' 
-                ? "Leave empty to use the system's built-in API key (free). Enter a key to use your own quota." 
-                : "Your API key is stored locally in your browser and sent directly to the API provider."}
+              {!apiKey 
+                ? `Using system key and default endpoint (${SYSTEM_BASE_URL}). Leave blank to keep using the built-in credentials.` 
+                : "Your API key is stored locally in your browser and sent directly to the chosen provider/endpoint."}
             </p>
           </div>
 

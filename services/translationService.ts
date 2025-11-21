@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { TranslationResult, ApiConfig } from "../types";
+import { SYSTEM_API_KEY, SYSTEM_BASE_URL, PROVIDER_DEFAULT_BASE_URLS } from "../constants";
 
 const GEMINI_MODEL = "gemini-flash-lite-latest";
 const GEMINI_VALIDATION_MODEL = "gemini-2.5-flash"; // Use standard flash for validation
@@ -8,6 +9,15 @@ const OPENAI_MODEL = "gpt-4o-mini";
 const CLAUDE_MODEL = "claude-3-5-haiku-20241022";
 
 const SYSTEM_INSTRUCTION = "You are a professional translator. Detect the source language automatically and translate the text accurately. Return the result in JSON format. Do not add any explanations.";
+
+const trimBase = (url?: string) => url?.trim().replace(/\/+$/, '');
+const resolveBaseUrl = (provider: ApiConfig['provider'], apiKey: string, baseUrl?: string) => {
+  const cleaned = trimBase(baseUrl);
+  if (cleaned) return cleaned;
+  const hasCustomKey = !!apiKey?.trim();
+  return trimBase(hasCustomKey ? PROVIDER_DEFAULT_BASE_URLS[provider] : SYSTEM_BASE_URL);
+};
+const resolveApiKey = (apiKey: string) => apiKey.trim() || SYSTEM_API_KEY;
 
 export const translateText = async (
   text: string,
@@ -32,15 +42,17 @@ export const translateText = async (
 export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => {
   const provider = config.provider;
   const userKey = (config.apiKey || "").trim();
-  const baseUrl = config.baseUrl?.trim();
+  const baseUrl = config.baseUrl;
 
   if (provider === 'openai') {
-    if (!userKey) return false;
+    const keyToValidate = resolveApiKey(userKey);
+    if (!keyToValidate) return false;
     try {
-      const url = baseUrl ? `${baseUrl.replace(/\/+$/, '')}/models` : "https://api.openai.com/v1/models";
+      const base = resolveBaseUrl(provider, userKey, baseUrl) || PROVIDER_DEFAULT_BASE_URLS[provider];
+      const url = `${base}/models`;
       const response = await fetch(url, {
         method: "GET",
-        headers: { "Authorization": `Bearer ${userKey}` }
+        headers: { "Authorization": `Bearer ${keyToValidate}` }
       });
       return response.ok;
     } catch (error) {
@@ -50,13 +62,15 @@ export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => 
   } 
 
   if (provider === 'claude') {
-    if (!userKey) return false;
+    const keyToValidate = resolveApiKey(userKey);
+    if (!keyToValidate) return false;
     try {
-      const url = baseUrl ? `${baseUrl.replace(/\/+$/, '')}/messages` : "https://api.anthropic.com/v1/messages";
+      const base = resolveBaseUrl(provider, userKey, baseUrl) || PROVIDER_DEFAULT_BASE_URLS[provider];
+      const url = `${base}/messages`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          "x-api-key": userKey,
+          "x-api-key": keyToValidate,
           "anthropic-version": "2023-06-01",
           "content-type": "application/json",
           "anthropic-dangerously-allow-browser": "true"
@@ -75,22 +89,18 @@ export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => 
   }
   
   if (provider === 'gemini') {
-    let keyToValidate = userKey;
-    const isUsingSystemKey = !userKey;
-
-    if (isUsingSystemKey) {
-      keyToValidate = process.env.API_KEY as string;
-    }
+    let keyToValidate = userKey || (process.env.API_KEY as string) || SYSTEM_API_KEY;
 
     if (!keyToValidate) return false;
 
     try {
+      const base = resolveBaseUrl(provider, userKey, baseUrl);
       // If baseUrl is provided, pass it to the SDK constructor options if supported,
       // or fallback to a method that supports it. 
       // The GoogleGenAI constructor accepts client options including baseUrl.
       const options: any = { apiKey: keyToValidate };
-      if (baseUrl) {
-        options.baseUrl = baseUrl;
+      if (base) {
+        options.baseUrl = base;
       }
       
       const ai = new GoogleGenAI(options);
@@ -117,15 +127,16 @@ export const validateApiConfig = async (config: ApiConfig): Promise<boolean> => 
 
 async function translateWithGemini(text: string, targetLanguage: string, apiKey: string, baseUrl?: string): Promise<TranslationResult> {
   const userKey = (apiKey || "").trim();
-  const key = userKey || process.env.API_KEY;
+  const key = userKey || (process.env.API_KEY as string) || SYSTEM_API_KEY;
   
   if (!key) {
     throw new Error("Gemini API Key is missing. Please configure it in settings.");
   }
 
   const options: any = { apiKey: key };
-  if (baseUrl?.trim()) {
-    options.baseUrl = baseUrl.trim();
+  const resolvedBase = resolveBaseUrl('gemini', userKey, baseUrl);
+  if (resolvedBase) {
+    options.baseUrl = resolvedBase;
   }
 
   const ai = new GoogleGenAI(options);
@@ -169,13 +180,14 @@ async function translateWithGemini(text: string, targetLanguage: string, apiKey:
 }
 
 async function translateWithOpenAI(text: string, targetLanguage: string, apiKey: string, baseUrl?: string): Promise<TranslationResult> {
-  const key = (apiKey || "").trim();
+  const userKey = (apiKey || "").trim();
+  const key = resolveApiKey(userKey);
   if (!key) {
     throw new Error("OpenAI API Key is missing.");
   }
 
   // Construct URL: Use custom base or default, then append endpoint
-  const base = baseUrl?.trim().replace(/\/+$/, '') || "https://api.openai.com/v1";
+  const base = resolveBaseUrl('openai', userKey, baseUrl) || PROVIDER_DEFAULT_BASE_URLS.openai;
   const url = `${base}/chat/completions`;
 
   try {
@@ -218,13 +230,14 @@ async function translateWithOpenAI(text: string, targetLanguage: string, apiKey:
 }
 
 async function translateWithClaude(text: string, targetLanguage: string, apiKey: string, baseUrl?: string): Promise<TranslationResult> {
-  const key = (apiKey || "").trim();
+  const userKey = (apiKey || "").trim();
+  const key = resolveApiKey(userKey);
   if (!key) {
     throw new Error("Claude API Key is missing.");
   }
 
   // Construct URL: Use custom base or default, then append endpoint
-  const base = baseUrl?.trim().replace(/\/+$/, '') || "https://api.anthropic.com/v1";
+  const base = resolveBaseUrl('claude', userKey, baseUrl) || PROVIDER_DEFAULT_BASE_URLS.claude;
   const url = `${base}/messages`;
 
   try {
