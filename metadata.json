@@ -1,0 +1,5 @@
+{
+  "name": "FlashTranslate",
+  "description": "A lightning-fast, cross-platform AI translator powered by Gemini Flash Lite.",
+  "requestFramePermissions": []
+}

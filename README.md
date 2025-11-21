@@ -1,0 +1,1 @@
+#### A lightning-fast, cross-platform AI translator powered by LLM.
